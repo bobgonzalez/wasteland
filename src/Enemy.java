@@ -42,8 +42,14 @@ public class Enemy {
             if(rank == 3){
                 color1 = Color.ORANGE;
                 speed = 4;
-                r = 7;
-                health = 3;
+                r = 8;
+                health = 4;
+            }
+            if(rank == 4){
+                color1 = Color.BLACK;
+                speed = 8;
+                r = 3;
+                health = 2;
             }
         }
         x = Math.random() * GamePanel.WIDTH / 2 + GamePanel.WIDTH / 4;
