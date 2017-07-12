@@ -1,7 +1,11 @@
 /**
  * Created by robert on 6/24/17.
  */
+import javax.imageio.ImageIO;
 import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 
 public class Bullet {
     private double x;
@@ -13,14 +17,15 @@ public class Bullet {
     private double rad;
     private double speed;
 
+    private double damage;
     public double lifeFrames;
 
     private Color color1;
 
-    public Bullet(double angle, int x, int y, int sp, int lf){
+    public Bullet(double angle, int x, int y, double sp, int lf, double d, int ra){
         this.x = x;
         this.y = y;
-        r = 2;
+        r = 13;
         speed = sp;
 
         rad = Math.toRadians(angle);
@@ -29,6 +34,7 @@ public class Bullet {
 
         color1 = Color.RED;
         lifeFrames = lf;
+        damage = d;
     }
 
     public boolean update(){
@@ -44,8 +50,13 @@ public class Bullet {
     }
 
     public void draw(Graphics2D g){
-        g.setColor(color1);
-        g.fillOval((int) (x-r), (int) (y-r), 2*r, 2*r);
+        //g.setColor(color1);
+        //g.fillOval((int) (x-r), (int) (y-r), 2*r, 2*r);
+        BufferedImage img = null;
+        try {
+            img = ImageIO.read(new File("/home/robert/Documents/wasteland/src/res/b2.png"));
+        } catch (IOException e) {System.out.println("IO Error");}
+        g.drawImage(img, (int)x-r, (int)y-r, null);
     }
 
     public double getX() {
@@ -58,5 +69,13 @@ public class Bullet {
 
     public int getR() {
         return r;
+    }
+
+    public double getDamage() {
+        return damage;
+    }
+
+    public void setDamage(double damage) {
+        this.damage = damage;
     }
 }

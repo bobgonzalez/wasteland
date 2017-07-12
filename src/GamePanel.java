@@ -1,17 +1,23 @@
 /**
  * Created by robert on 6/24/17.
  */
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.image.*;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Random;
+
+// TODO: create strength attribule in bullet; have it vary by wepon
 
 public class GamePanel extends JPanel implements Runnable, KeyListener {
 
-    public static int WIDTH = 600;
-    public static int HEIGHT = 600;
+    public static int WIDTH = 800;
+    public static int HEIGHT = 800;
 
     private Thread thread;
     private boolean running;
@@ -22,11 +28,14 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     public static Player player;
     public static ArrayList<Bullet> bullets;
     public static ArrayList<Enemy> enemies;
+    public static ArrayList<NPC> npcs;
+    public static ArrayList<PowerUp> powers;
     private long waveStartTimer;
     private long waveStartTimerDiff;
     private int waveNumber;
     private boolean waveStart;
     private int waveDelay = 2000;
+    private boolean pause = false;
 
     public GamePanel(){
         super();
@@ -64,6 +73,8 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         player = new Player();
         bullets = new ArrayList<Bullet>();
         enemies = new ArrayList<Enemy>();
+        npcs = new ArrayList<NPC>();
+        powers = new ArrayList<PowerUp>();
         waveStartTimer = 0;
         waveStartTimerDiff = 0;
         waveStart = true;
@@ -72,6 +83,10 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         //    enemies.add(new Enemy(1, 1));
         //}
         while(running){
+
+            if (pause){
+                pause();
+            }
             startTime = System.nanoTime();
 
             gameUpdate();
@@ -91,6 +106,10 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         }
     }
 
+    private void pause(){
+
+    }
+
     private void gameUpdate(){
         // wave start
         if(waveStartTimer == 0 && enemies.size() == 0){
@@ -106,9 +125,19 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 waveStartTimerDiff = 0;
             }
         }
+        if (enemies.size() == 0){
+            // kill live NPCS
+            for(int i = 0; i < npcs.size(); i++){
+                Random r = new Random();
+                int i1 = r.nextInt(6 - 1) + 1;
+                powers.add(new PowerUp(i1, npcs.get(i).getX(), npcs.get(i).getY()));
+                npcs.remove(i);
+            }
+        }
         //create enemies
         if(waveStart && enemies.size() == 0){
             createNewEnemies();
+            createNewNPCS();
         }
         // update player
         player.update();
@@ -123,6 +152,14 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         // update enemies
         for(int i = 0; i < enemies.size(); i++){
             enemies.get(i).update();
+        }
+        // update NPCS
+        for(int i = 0; i < npcs.size(); i++){
+            npcs.get(i).update();
+        }
+        // update powers
+        for(int i = 0; i < powers.size(); i++){
+            powers.get(i).update();
         }
         // check for bullet enemy collision
         for(int i = 0; i < bullets.size(); i++){
@@ -140,9 +177,53 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 double dist = Math.sqrt(dx*dx + dy*dy);
 
                 if(dist < br + er + 1){
-                    e.hit();
+                    e.hit(b.getDamage());
                     bullets.remove(i);
                     i--;
+                    break;
+                }
+            }
+        }
+        // check for bullet NPC collision
+        for(int i = 0; i < bullets.size(); i++){
+            Bullet b = bullets.get(i);
+            double bx = b.getX();
+            double by = b.getY();
+            double br = b.getR();
+            for(int j = 0; j < npcs.size(); j++){
+                NPC e = npcs.get(j);
+                double ex = e.getX();
+                double ey = e.getY();
+                double er = e.getR();
+                double dx = bx - ex;
+                double dy = by - ey;
+                double dist = Math.sqrt(dx*dx + dy*dy);
+
+                if(dist < br + er + 1){
+                    e.hit(b.getDamage());
+                    bullets.remove(i);
+                    i--;
+                    break;
+                }
+            }
+        }
+        // check for Enemy NPC collision
+        for(int i = 0; i < npcs.size(); i++){
+            NPC b = npcs.get(i);
+            double bx = b.getX();
+            double by = b.getY();
+            double br = b.getR();
+            for(int j = 0; j < enemies.size(); j++){
+                Enemy e = enemies.get(j);
+                double ex = e.getX();
+                double ey = e.getY();
+                double er = e.getR();
+                double dx = bx - ex;
+                double dy = by - ey;
+                double dist = Math.sqrt(dx*dx + dy*dy);
+
+                if(dist < br + er + 1){
+                    b.hit(1);
                     break;
                 }
             }
@@ -152,6 +233,14 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             if(enemies.get(i).isDead()){
                 player.setKills(player.getKills()+enemies.get(i).getRank());
                 enemies.remove(i);
+                i--;
+            }
+        }
+        // clean up dead NPCS
+        for(int i = 0; i < npcs.size(); i++){
+            if(npcs.get(i).isDead()){
+                // - 1player.setKills();
+                npcs.remove(i);
                 i--;
             }
         }
@@ -175,27 +264,87 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 }
             }
         }
+        // check for player power up collisions
+        double bx = player.getX();
+        double by = player.getY();
+        double br = player.getR();
+        for(int i = 0; i < powers.size(); i++){
+            PowerUp e = powers.get(i);
+            double ex = e.getX();
+            double ey = e.getY();
+            double er = e.getR();
+            double dx = bx - ex;
+            double dy = by - ey;
+            double dist = Math.sqrt(dx*dx + dy*dy);
+
+            if(dist < br + er + 1){
+                if (powers.get(i).getType() == 1) {
+                    player.addLife();
+                }
+                if (powers.get(i).getType() == 2) {
+                    player.upSpeed();
+                }
+                if (powers.get(i).getType() == 3) {
+                    player.upFiringSpeed();
+                }
+                if (powers.get(i).getType() == 4) {
+                    player.upFirePower();
+                }
+                if (powers.get(i).getType() == 5) {
+                    player.upLF();
+                }
+                    powers.remove(i);
+                    i--;
+                break;
+            }
+        }
     }
 
     private void gameRender(){
-        g.setColor(new Color(20, 100, 20));
-        g.fillRect(0, 0, WIDTH, HEIGHT);
+        BufferedImage img = null;
+        //g.setColor(new Color(20, 100, 20));
+        //g.fillRect(0, 0, WIDTH, HEIGHT);
+        try {
+            img = ImageIO.read(new File("/home/robert/Documents/wasteland/src/res/space3.jpg"));
+        } catch (IOException e) {System.out.println("IO Error");}
         //g.setColor(Color.BLACK);
         //g.drawString("FPS : " + average_FPS, 10, 10);
-
-        // draw player
-        player.draw(g);
-        // draw bullets
-        for(int i = 0; i < bullets.size(); i++){
-            bullets.get(i).draw(g);
+        g.drawImage(img, 0, 0, null);
+        // draw health
+        for(int i = 0; i < player.getLives(); i++){
+            BufferedImage img2 = null;
+            try {
+                img2 = ImageIO.read(new File("/home/robert/Documents/wasteland/src/res/player_up.png"));
+            } catch (IOException e) {System.out.println("IO Error");}
+            g.drawImage(img2, 40 + (40 * i), 40, null);
+            //g.setColor(Color.WHITE);
+            //g.fillOval(20 + (20 * i), 20, player.getR()*2, player.getR()*2);
+            //g.setStroke(new BasicStroke(3));
+            //g.setColor(Color.WHITE.darker());
+            //g.drawOval(20 + (20 * i), 20, player.getR()*2, player.getR()*2);
+            //g.setStroke(new BasicStroke(1));
+        }
+        // draw powers
+        for(int i = 0; i < powers.size(); i++){
+            powers.get(i).draw(g);
         }
         // draw emenies
         for(int i = 0; i < enemies.size(); i++){
             enemies.get(i).draw(g);
         }
+        // draw bullets
+        for(int i = 0; i < bullets.size(); i++){
+            bullets.get(i).draw(g);
+        }
+        // draw player
+        player.draw(g);
+        // draw NPCS
+        for(int i = 0; i < npcs.size(); i++){
+            npcs.get(i).draw(g);
+        }
         // draw wave number
         if(waveStartTimer != 0){
-            g.setFont(new Font("Century Gothic", Font.PLAIN, 18));
+            g.setFont(new Font("Century Gothic", Font.BOLD, 24));
             String s = "-    W A V E    " + waveNumber + "    -";
             int length = (int) g.getFontMetrics().getStringBounds(s, g).getWidth();
             int alpha = (int) (255 * Math.sin(3.14 * waveStartTimerDiff / waveDelay));
@@ -203,17 +352,9 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
             g.setColor(new Color(255, 255, 255, alpha));
             g.drawString(s, WIDTH/2 - length/2, HEIGHT/2);
         }
+        g.setColor(Color.WHITE);
         String s = "Points : " + player.getKills();
-        g.drawString(s, GamePanel.WIDTH-100, 20);
-        // draw health
-        for(int i = 0; i < player.getLives(); i++){
-            g.setColor(Color.WHITE);
-            g.fillOval(20 + (20 * i), 20, player.getR()*2, player.getR()*2);
-            g.setStroke(new BasicStroke(3));
-            g.setColor(Color.WHITE.darker());
-            g.drawOval(20 + (20 * i), 20, player.getR()*2, player.getR()*2);
-            g.setStroke(new BasicStroke(1));
-        }
+        g.drawString(s, GamePanel.WIDTH-200, 40);
     }
 
     private void gameDraw(){
@@ -222,47 +363,95 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         g2.dispose();
     }
 
+    private void createNewNPCS(){
+        npcs.clear();
+
+        if(waveNumber % 5 == 1){
+            for(int i = 0; i < 1; i++) {
+                npcs.add(new NPC(1, 1));
+            }
+        }
+        if(waveNumber % 5 == 2){
+            for(int i = 0; i < 2; i++) {
+                npcs.add(new NPC(1, 1));
+            }
+        }
+        if(waveNumber % 5 == 3){
+            for(int i = 0; i < 4; i++) {
+                npcs.add(new NPC(1, 1));
+            }
+        }
+        if(waveNumber % 5 == 4){
+            for(int i = 0; i < 8; i++) {
+                npcs.add(new NPC(1, 1));
+            }
+        }
+        if(waveNumber % 5 == 0){
+            for(int i = 0; i < 16; i++) {
+                npcs.add(new NPC(1, 1));
+            }
+        }
+    }
+
     private void createNewEnemies(){
         enemies.clear();
-        Enemy e;
 
-        if(waveNumber == 1){
+        if(waveNumber % 5 == 1){
             for(int i = 0; i < 4; i++) {
                 enemies.add(new Enemy(1, 1));
             }
         }
-        if(waveNumber == 2){
-            for(int i = 0; i < 8; i++) {
+        if(waveNumber % 5 == 2){
+            for(int i = 0; i < 2; i++) {
                 enemies.add(new Enemy(1, 1));
             }
             for(int i = 0; i < 4; i++) {
                 enemies.add(new Enemy(1, 2));
             }
         }
-        if(waveNumber == 3){
-            for(int i = 0; i < 10; i++) {
-                enemies.add(new Enemy(1, 1));
-            }
-            for(int i = 0; i < 6; i++) {
-                enemies.add(new Enemy(1, 2));
-            }
-            for(int i = 0; i < 4; i++) {
-                enemies.add(new Enemy(1, 3));
-            }
-        }
-        if(waveNumber == 4){
-            for(int i = 0; i < 12; i++) {
-                enemies.add(new Enemy(1, 1));
-            }
-            for(int i = 0; i < 8; i++) {
-                enemies.add(new Enemy(1, 2));
-            }
-            for(int i = 0; i < 6; i++) {
-                enemies.add(new Enemy(1, 3));
-            }
+        if(waveNumber % 5 == 3){
             for(int i = 0; i < 3; i++) {
+                enemies.add(new Enemy(1, 1));
+            }
+            for(int i = 0; i < 5; i++) {
+                enemies.add(new Enemy(1, 2));
+            }
+            for(int i = 0; i < 4; i++) {
+                enemies.add(new Enemy(1, 3));
+            }
+        }
+        if(waveNumber % 5 == 4){
+            for(int i = 0; i < 2; i++) {
+                enemies.add(new Enemy(1, 1));
+            }
+            for(int i = 0; i < 2; i++) {
+                enemies.add(new Enemy(1, 2));
+            }
+            for(int i = 0; i < 4; i++) {
+                enemies.add(new Enemy(1, 3));
+            }
+            for(int i = 0; i < 6; i++) {
                 enemies.add(new Enemy(1, 4));
             }
+        }
+        if(waveNumber % 5 == 0){
+            for(int i = 0; i < 4; i++) {
+                enemies.add(new Enemy(1, 3));
+            }
+            for(int i = 0; i < 12; i++) {
+                enemies.add(new Enemy(1, 4));
+            }
+        }
+        for (int i = 0; i < enemies.size(); i++){
+            enemies.get(i).setHealth(enemies.get(i).getHealth()+(waveNumber/5));
+            enemies.get(i).setSpeed(enemies.get(i).getSpeed()+(waveNumber/5.0)*.5);
+        }
+    }
+
+    public void killAll(){
+        for(int i = 0; i < enemies.size(); i++){
+            enemies.clear();
+
         }
     }
 
@@ -289,6 +478,16 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         }
         if(keyCode == KeyEvent.VK_C){
             player.nextMode();
+        }
+        if(keyCode == KeyEvent.VK_A){
+            killAll();
+        }
+        if(keyCode == KeyEvent.VK_P){
+            if(pause){
+                pause = false;
+            }
+            else
+                pause = true;
         }
     }
     public void keyReleased(KeyEvent key){

@@ -7,7 +7,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 
-public class Enemy {
+public class NPC {
     private double x;
     private double y;
     private int r;
@@ -21,59 +21,52 @@ public class Enemy {
     private int type;
     private int rank;
 
+    private int turnDelay;
+    private int frames = 0;
+    private double angle;
+
     private Color color1;
 
     private boolean ready;
     private boolean dead;
 
-    private BufferedImage img = null;
+    private PowerUp power;
 
-    public Enemy(int type, int rank){
+    public NPC(int type, int rank){
         this.rank = rank;
         this.type = type;
 
         if(type ==1){
-            color1 = Color.BLUE;
+            color1 = Color.RED;
             if(rank == 1){
-                speed = 5;
-                r = 15;
-                health = 1;
-                try {
-                    img = ImageIO.read(new File("/home/robert/Documents/wasteland/src/res/e1.png"));
-                } catch (IOException e) {System.out.println("IO Error");}
+                speed = 2;
+                r = 8;
+                health = 3;
+                turnDelay = 30;
             }
             if(rank == 2){
                 color1 = Color.PINK.darker();
-                speed = 7;
-                r = 15;
+                speed = 3;
+                r = 5;
                 health = 2;
-                try {
-                    img = ImageIO.read(new File("/home/robert/Documents/wasteland/src/res/e2.png"));
-                } catch (IOException e) {System.out.println("IO Error");}
             }
             if(rank == 3){
                 color1 = Color.ORANGE;
-                speed = 3;
-                r = 20;
+                speed = 4;
+                r = 8;
                 health = 4;
-                try {
-                    img = ImageIO.read(new File("/home/robert/Documents/wasteland/src/res/e3.png"));
-                } catch (IOException e) {System.out.println("IO Error");}
             }
             if(rank == 4){
                 color1 = Color.GREEN.darker();
-                speed = 14;
-                r = 7;
+                speed = 8;
+                r = 3;
                 health = 2;
-                try {
-                    img = ImageIO.read(new File("/home/robert/Documents/wasteland/src/res/e4.png"));
-                } catch (IOException e) {System.out.println("IO Error");}
             }
         }
         x = Math.random() * GamePanel.WIDTH / 2 + GamePanel.WIDTH / 4;
-        y = -r;
+        y = Math.random() * GamePanel.WIDTH / 2 + GamePanel.WIDTH / 4;
 
-        double angle = Math.random() * 140 + 20;
+        angle = Math.random() * 140 + 20;
         rad = Math.toRadians(angle);
 
         dx = Math.cos(rad) * speed;
@@ -133,8 +126,17 @@ public class Enemy {
     }
 
     public void update(){
+        if (frames == turnDelay){
+            frames = 0;
+            angle += 80;
+            rad = Math.toRadians(angle);
+            dx = Math.cos(rad) * speed;
+            dy = Math.sin(rad) * speed;
+        }
+
         x += dx;
         y += dy;
+        frames++;
 
         if(!ready){
             if(x > r && x < GamePanel.WIDTH - r && y > r && y < GamePanel.HEIGHT - r ){
@@ -150,11 +152,16 @@ public class Enemy {
 
     public void draw(Graphics2D g){
         //g.setColor(color1);
-        //g.fillOval((int) (x-r), (int) (y-r), 2*r, 2*r);
+        //g.fillRect((int) (x-r), (int) (y-r), 2*r, 2*r);
         //g.setStroke(new BasicStroke(3));
         //g.setColor(color1.darker());
-        //g.drawOval((int) (x-r), (int) (y-r), 2*r, 2*r);
+        //g.drawRect((int) (x-r), (int) (y-r), 2*r, 2*r);
         //g.setStroke(new BasicStroke(1));
+
+        BufferedImage img = null;
+        try {
+            img = ImageIO.read(new File("/home/robert/Documents/wasteland/src/res/npc.png"));
+        } catch (IOException e) {System.out.println("IO Error");}
         g.drawImage(img, (int)x-r, (int)y-r, null);
     }
 }
